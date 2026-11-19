@@ -60,3 +60,18 @@ test('guide setups are solved by their algorithms', () => {
     }
   }
 });
+
+test('keymaps produce valid moves', async () => {
+  const { KEYMAPS, moveForKey } = await import('../js/keymap.js');
+  for (const id of Object.keys(KEYMAPS)) {
+    for (const code of Object.keys(KEYMAPS[id].keys)) {
+      for (const shiftKey of [false, true]) {
+        const mv = moveForKey(id, { code, shiftKey });
+        assert.equal(parseAlg(mv).length, 1, `${id} ${code} -> ${mv}`);
+      }
+    }
+  }
+  assert.equal(moveForKey('hands', { code: 'KeyI' }), 'R');
+  assert.equal(moveForKey('hands', { code: 'KeyK' }), "R'");
+  assert.equal(moveForKey('notation', { code: 'KeyR', shiftKey: true }), "R'");
+});

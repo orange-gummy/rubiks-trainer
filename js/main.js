@@ -3,6 +3,7 @@ import { generateScramble } from './scramble.js';
 import { formatSolve, formatTime, averageOf, bestAverageOf, best, mean } from './stats.js';
 import { SpeedTimer } from './timer.js';
 import { GUIDE_STEPS } from './guide.js';
+import { KEYMAPS, moveForKey, renderKeyboard } from './keymap.js';
 
 const $ = (sel) => document.querySelector(sel);
 
@@ -43,7 +44,8 @@ for (const b of tabButtons) b.addEventListener('click', () => showTab(b.dataset.
 
 // ---------- タイマー ----------
 let solves = load(STORE_KEY, []);
-const options = load(OPT_KEY, { inspection: false });
+const options = { inspection: false, keymap: 'hands', ...load(OPT_KEY, {}) };
+if (!KEYMAPS[options.keymap]) options.keymap = 'hands';
 const scrambleHistory = [];
 let scramble = '';
 
@@ -290,11 +292,23 @@ for (const row of MOVE_ROWS) {
 
 document.addEventListener('keydown', (e) => {
   if (activeTab !== 'cube' || isTyping(e) || e.ctrlKey || e.metaKey || e.altKey) return;
-  const k = e.key;
-  const name = /^[udrlfbmes]$/i.test(k) ? k.toUpperCase() : /^[xyz]$/i.test(k) ? k.toLowerCase() : null;
-  if (!name) return;
+  if (e.target instanceof HTMLSelectElement) return;
+  const mv = moveForKey(options.keymap, e);
+  if (!mv) return;
   e.preventDefault();
-  doMoves([{ name, turns: e.shiftKey ? -1 : 1 }]);
+  ensureCube3D();
+  doMoves(parseAlg(mv));
+});
+
+const keymapSelect = $('#keymap');
+for (const [id, { label }] of Object.entries(KEYMAPS)) keymapSelect.add(new Option(label, id));
+keymapSelect.value = options.keymap;
+renderKeyboard($('#keyboard-map'), options.keymap);
+keymapSelect.addEventListener('change', () => {
+  options.keymap = keymapSelect.value;
+  save(OPT_KEY, options);
+  renderKeyboard($('#keyboard-map'), options.keymap);
+  keymapSelect.blur();
 });
 
 function readAlgInput() {

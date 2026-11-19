@@ -72,10 +72,19 @@
         <div class="cube-stage">
           <div id="cube-canvas" class="cube-canvas"></div>
           <div id="cube-status" class="cube-status">揃っています</div>
-          <p class="muted cube-tip">ドラッグで視点を回転。キーボード：U D R L F B M E S x y z（Shiftで逆回転）</p>
+          <p class="muted cube-tip">ドラッグで視点を回転。キーボード操作は右の「キー配置」を参照。</p>
         </div>
 
         <div class="cube-controls">
+          <div class="control-block">
+            <div class="kb-head">
+              <label for="keymap" class="label">キー配置</label>
+              <select id="keymap" class="select"></select>
+            </div>
+            <div id="keyboard-map" class="keyboard" aria-label="キーボードの割り当て"></div>
+            <p class="muted kb-note">人差し指の J / F で U / U'、中指の I / K で R / R'、D / E で L / L'。</p>
+          </div>
+
           <div class="move-grid" id="move-grid"></div>
 
           <div class="control-block">

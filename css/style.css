@@ -250,3 +250,26 @@ input[type="range"] { width: 100%; accent-color: var(--accent); }
   .solve-item { grid-template-columns: 2.4em 1fr auto; }
   .alg-name { min-width: 0; width: 100%; }
 }
+
+/* キー配置 */
+.kb-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.select {
+  padding: 4px 8px; border-radius: 8px; border: 1px solid var(--border); background: var(--bg); font-size: .85rem;
+}
+.keyboard { display: flex; flex-direction: column; gap: 4px; font-size: clamp(.62rem, 1.6vw, .8rem); }
+.kb-row { display: grid; grid-template-columns: repeat(10, minmax(0, 2.9em)); gap: 4px; }
+.kb-key {
+  aspect-ratio: 1 / 1; border-radius: 6px; border: 1px solid var(--border); background: var(--bg);
+  display: flex; flex-direction: column; align-items: center; justify-content: center; line-height: 1.1;
+  opacity: .45;
+}
+.kb-key.on { opacity: 1; background: var(--surface-2); border-bottom: 3px solid var(--face, var(--muted)); }
+.kb-cap { font-size: .8em; color: var(--muted); }
+.kb-move { font-family: ui-monospace, Menlo, Consolas, monospace; font-weight: 700; font-size: 1.05em; }
+.kb-key[data-face="U"] { --face: #c9cdd3; }
+.kb-key[data-face="D"] { --face: #ffd500; }
+.kb-key[data-face="R"] { --face: #b71234; }
+.kb-key[data-face="L"] { --face: #ff5800; }
+.kb-key[data-face="F"] { --face: #009b48; }
+.kb-key[data-face="B"] { --face: #0046ad; }
+.kb-note { margin: 0; font-size: .8rem; }
