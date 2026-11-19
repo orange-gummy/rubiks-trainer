@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>Rubik's Trainer</title>
-  <meta name="description" content="3x3 ルービックキューブの練習アプリ：スクランブル、タイマー、3Dキューブ、初心者向け解法ガイド">
+  <meta name="description" content="3x3 ルービックキューブを3Dで揃える練習アプリ。スマホのスワイプ操作と初心者向け解法ガイド付き">
   <link rel="stylesheet" href="css/style.css">
   <script type="importmap">
   {
@@ -19,64 +19,28 @@
   <header class="app-header">
     <h1 class="logo"><span class="logo-mark" aria-hidden="true"></span>Rubik's Trainer</h1>
     <nav class="tabs" role="tablist">
-      <button class="tab" role="tab" data-tab="timer" aria-selected="true">タイマー</button>
-      <button class="tab" role="tab" data-tab="cube" aria-selected="false">3Dキューブ</button>
+      <button class="tab" role="tab" data-tab="cube" aria-selected="true">練習</button>
       <button class="tab" role="tab" data-tab="guide" aria-selected="false">解法ガイド</button>
     </nav>
   </header>
 
   <main>
-    <!-- タイマー -->
-    <section id="panel-timer" class="panel" role="tabpanel">
-      <div class="scramble-box">
-        <div class="scramble-head">
-          <span class="label">スクランブル</span>
-          <div class="btn-row">
-            <button id="btn-prev-scramble" class="btn ghost small" title="前のスクランブル">◀</button>
-            <button id="btn-new-scramble" class="btn ghost small">新しく生成</button>
-            <button id="btn-scramble-3d" class="btn ghost small">3Dで見る</button>
-          </div>
-        </div>
-        <p id="scramble-text" class="scramble-text"></p>
-        <div id="scramble-net" class="net small-net" aria-label="スクランブル後の展開図"></div>
-      </div>
-
-      <div id="timer-area" class="timer-area" tabindex="0">
-        <div id="timer-display" class="timer-display">0.00</div>
-        <p id="timer-hint" class="timer-hint">スペースキー（スマホは画面をタップ）を長押し → 緑になったら離してスタート</p>
-        <label class="toggle"><input type="checkbox" id="opt-inspection"> 15秒インスペクション</label>
-      </div>
-
-      <div class="stats-grid">
-        <div class="stat"><span class="stat-label">ベスト</span><span id="stat-best" class="stat-value">-</span></div>
-        <div class="stat"><span class="stat-label">ao5</span><span id="stat-ao5" class="stat-value">-</span></div>
-        <div class="stat"><span class="stat-label">ao12</span><span id="stat-ao12" class="stat-value">-</span></div>
-        <div class="stat"><span class="stat-label">ベストao5</span><span id="stat-bao5" class="stat-value">-</span></div>
-        <div class="stat"><span class="stat-label">平均</span><span id="stat-mean" class="stat-value">-</span></div>
-        <div class="stat"><span class="stat-label">回数</span><span id="stat-count" class="stat-value">0</span></div>
-      </div>
-
-      <div class="history">
-        <div class="history-head">
-          <h2>記録</h2>
-          <button id="btn-clear" class="btn ghost small danger">すべて削除</button>
-        </div>
-        <ol id="solve-list" class="solve-list"></ol>
-        <p id="empty-history" class="muted">まだ記録がありません。最初のソルブを計測しましょう！</p>
-      </div>
-    </section>
-
     <!-- 3D キューブ -->
-    <section id="panel-cube" class="panel" role="tabpanel" hidden>
+    <section id="panel-cube" class="panel" role="tabpanel">
       <div class="cube-layout">
         <div class="cube-stage">
           <div id="cube-canvas" class="cube-canvas"></div>
           <div id="cube-status" class="cube-status">揃っています</div>
-          <p class="muted cube-tip">ドラッグで視点を回転。キーボード操作は右の「キー配置」を参照。</p>
+          <div class="quick-actions">
+            <button id="btn-random" class="btn primary">ランダムに崩す</button>
+            <button id="btn-undo" class="btn">↶ 1手戻す</button>
+            <button id="btn-reset" class="btn">リセット</button>
+          </div>
+          <p class="muted cube-tip"><b>キューブの面をスワイプ</b>するとその列が回ります。キューブの外側をドラッグすると視点が回ります。</p>
         </div>
 
         <div class="cube-controls">
-          <div class="control-block">
+          <div class="control-block keyboard-block">
             <div class="kb-head">
               <label for="keymap" class="label">キー配置</label>
               <select id="keymap" class="select"></select>
@@ -98,9 +62,6 @@
           </div>
 
           <div class="control-block btn-row">
-            <button id="btn-undo" class="btn">↶ 1手戻す</button>
-            <button id="btn-random" class="btn">ランダムに崩す</button>
-            <button id="btn-reset" class="btn">リセット</button>
             <button id="btn-view" class="btn ghost">視点を戻す</button>
           </div>
 

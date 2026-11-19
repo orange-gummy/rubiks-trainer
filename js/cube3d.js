@@ -26,10 +26,19 @@ function roundedSquare(size, r) {
 
 const ease = (p) => (p < 0.5 ? 2 * p * p : 1 - Math.pow(-2 * p + 2, 2) / 2);
 
+// 回転軸(0,1,2)・レイヤー(-1,0,1) → 1層だけを回す記号
+const LAYER_MOVES = [
+  { 1: 'R', 0: 'M', '-1': 'L' },
+  { 1: 'U', 0: 'E', '-1': 'D' },
+  { 1: 'F', 0: 'S', '-1': 'B' },
+];
+const SWIPE_THRESHOLD = 12; // px
+
 export class Cube3D {
-  constructor(container, { onMove } = {}) {
+  constructor(container, { onMove, onSwipe } = {}) {
     this.container = container;
     this.onMove = onMove;
+    this.onSwipe = onSwipe;
     this.queue = [];
     this.current = null;
     this.duration = 220;
@@ -40,7 +49,7 @@ export class Cube3D {
 
     this.scene = new THREE.Scene();
     this.camera = new THREE.PerspectiveCamera(30, 1, 0.1, 100);
-    this.camera.position.set(5.2, 4.4, 7.6);
+    this.camera.position.set(6.2, 5.2, 9.0);
 
     this.controls = new OrbitControls(this.camera, this.renderer.domElement);
     this.controls.enablePan = false;
@@ -66,6 +75,14 @@ export class Cube3D {
 
     this.cubies = [];
     this.build();
+
+    this.raycaster = new THREE.Raycaster();
+    this.swipe = null;
+    // OrbitControls より先に受け取るため capture で登録
+    container.addEventListener('pointerdown', (e) => this.onPointerDown(e), { capture: true });
+    window.addEventListener('pointermove', (e) => this.onPointerMove(e));
+    window.addEventListener('pointerup', (e) => this.onPointerUp(e));
+    window.addEventListener('pointercancel', (e) => this.onPointerUp(e));
 
     new ResizeObserver(() => this.resize()).observe(container);
     this.resize();
@@ -178,8 +195,76 @@ export class Cube3D {
     this.renderer.render(this.scene, this.camera);
   }
 
+  // ---------- スワイプで面を回す ----------
+  // キューブの上でドラッグ → その方向に列を回す。背景でドラッグ → 視点の回転。
+  ndc(e) {
+    const r = this.renderer.domElement.getBoundingClientRect();
+    return new THREE.Vector2(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1);
+  }
+
+  toScreen(v) {
+    const p = v.clone().project(this.camera);
+    const r = this.renderer.domElement.getBoundingClientRect();
+    return new THREE.Vector2((p.x + 1) / 2 * r.width, (1 - p.y) / 2 * r.height);
+  }
+
+  onPointerDown(e) {
+    if (this.swipe || (e.pointerType === 'mouse' && e.button !== 0)) return;
+    if (this.isBusy()) this.flush();
+    this.raycaster.setFromCamera(this.ndc(e), this.camera);
+    const hit = this.raycaster.intersectObjects(this.cubies, true)[0];
+    if (!hit) return; // 背景 → OrbitControls に任せる
+    let cubie = hit.object;
+    while (cubie && !this.cubies.includes(cubie)) cubie = cubie.parent;
+    const n = hit.face.normal.clone().transformDirection(hit.object.matrixWorld);
+    const ni = [0, 1, 2].reduce((a, i) => (Math.abs(n.getComponent(i)) > Math.abs(n.getComponent(a)) ? i : a), 0);
+    const normal = new THREE.Vector3().setComponent(ni, Math.sign(n.getComponent(ni)));
+    // 外側の面以外（回転途中の内側など）は無視
+    if (Math.round(cubie.position.getComponent(ni)) !== normal.getComponent(ni)) return;
+    this.controls.enabled = false;
+    this.swipe = {
+      id: e.pointerId, x: e.clientX, y: e.clientY,
+      point: hit.point.clone(), normal, ni, cubiePos: cubie.position.clone().round(),
+    };
+    e.preventDefault();
+  }
+
+  onPointerMove(e) {
+    const s = this.swipe;
+    if (!s || e.pointerId !== s.id || s.done) return;
+    const drag = new THREE.Vector2(e.clientX - s.x, e.clientY - s.y);
+    if (drag.length() < SWIPE_THRESHOLD) return;
+    s.done = true;
+
+    // 面に沿った2方向のうち、画面上でドラッグ方向に近いほうを選ぶ
+    const origin = this.toScreen(s.point);
+    let best = null;
+    for (let i = 0; i < 3; i++) {
+      if (i === s.ni) continue;
+      const t = new THREE.Vector3().setComponent(i, 1);
+      const sd = this.toScreen(s.point.clone().add(t)).sub(origin).normalize();
+      const d = drag.clone().normalize().dot(sd);
+      if (!best || Math.abs(d) > Math.abs(best.d)) best = { i, d };
+    }
+    const dir = new THREE.Vector3().setComponent(best.i, Math.sign(best.d));
+    // 法線 → ドラッグ方向 に動かす回転の軸 = normal × dir（正方向に90°）
+    const axisVec = new THREE.Vector3().crossVectors(s.normal, dir);
+    const ai = [0, 1, 2].find((i) => axisVec.getComponent(i) !== 0);
+    const sign = Math.sign(axisVec.getComponent(ai));
+    const layer = Math.round(s.cubiePos.getComponent(ai));
+    const name = LAYER_MOVES[ai][layer];
+    const defDir = MOVE_DEFS[name][2];
+    this.onSwipe?.({ name, turns: sign === defDir ? 1 : -1 });
+  }
+
+  onPointerUp(e) {
+    if (!this.swipe || e.pointerId !== this.swipe.id) return;
+    this.swipe = null;
+    this.controls.enabled = true;
+  }
+
   resetView() {
-    this.camera.position.set(5.2, 4.4, 7.6);
+    this.camera.position.set(6.2, 5.2, 9.0);
     this.controls.target.set(0, 0, 0);
   }
 

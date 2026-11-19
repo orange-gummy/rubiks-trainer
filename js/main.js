@@ -1,34 +1,33 @@
 import { CubeState, COLORS, parseAlg, invertMoves, algToString, renderNet } from './cube-model.js';
 import { generateScramble } from './scramble.js';
-import { formatSolve, formatTime, averageOf, bestAverageOf, best, mean } from './stats.js';
-import { SpeedTimer } from './timer.js';
 import { GUIDE_STEPS } from './guide.js';
 import { KEYMAPS, moveForKey, renderKeyboard } from './keymap.js';
 
 const $ = (sel) => document.querySelector(sel);
 
-// ---------- 保存 ----------
-const STORE_KEY = 'rubiks-trainer.solves.v1';
+// ---------- 設定の保存 ----------
 const OPT_KEY = 'rubiks-trainer.options.v1';
 
-function load(key, fallback) {
+function loadOptions() {
   try {
-    const v = localStorage.getItem(key);
-    return v ? JSON.parse(v) : fallback;
+    return JSON.parse(localStorage.getItem(OPT_KEY)) ?? {};
   } catch {
-    return fallback;
+    return {};
   }
 }
-function save(key, value) {
+function saveOptions() {
   try {
-    localStorage.setItem(key, JSON.stringify(value));
+    localStorage.setItem(OPT_KEY, JSON.stringify(options));
   } catch {
     /* 保存できない環境では無視 */
   }
 }
 
+const options = { keymap: 'hands', speed: 220, ...loadOptions() };
+if (!KEYMAPS[options.keymap]) options.keymap = 'hands';
+
 // ---------- タブ ----------
-let activeTab = 'timer';
+let activeTab = 'cube';
 const tabButtons = document.querySelectorAll('.tab');
 
 function showTab(name) {
@@ -36,171 +35,27 @@ function showTab(name) {
   for (const b of tabButtons) b.setAttribute('aria-selected', String(b.dataset.tab === name));
   for (const p of document.querySelectorAll('.panel')) p.hidden = p.id !== `panel-${name}`;
   window.scrollTo(0, 0);
-  if (name !== 'timer') timer.cancel();
   if (name === 'cube') ensureCube3D();
-  if (name === 'timer') $('#timer-area').focus({ preventScroll: true });
 }
 for (const b of tabButtons) b.addEventListener('click', () => showTab(b.dataset.tab));
 
-// ---------- タイマー ----------
-let solves = load(STORE_KEY, []);
-const options = { inspection: false, keymap: 'hands', ...load(OPT_KEY, {}) };
-if (!KEYMAPS[options.keymap]) options.keymap = 'hands';
-const scrambleHistory = [];
-let scramble = '';
-
-function setScramble(s) {
-  scramble = s;
-  $('#scramble-text').textContent = s;
-  renderNet($('#scramble-net'), new CubeState().apply(s));
-  $('#btn-prev-scramble').disabled = scrambleHistory.length === 0;
-}
-
-function nextScramble() {
-  if (scramble) scrambleHistory.push(scramble);
-  if (scrambleHistory.length > 50) scrambleHistory.shift();
-  setScramble(generateScramble());
-}
-
-$('#btn-new-scramble').addEventListener('click', nextScramble);
-$('#btn-prev-scramble').addEventListener('click', () => {
-  if (scrambleHistory.length) setScramble(scrambleHistory.pop());
-});
-$('#btn-scramble-3d').addEventListener('click', async () => {
-  showTab('cube');
-  await ensureCube3D();
-  resetCube();
-  doMoves(parseAlg(scramble), { instant: true, record: false });
-  $('#alg-input').value = scramble;
-});
-
-const inspectionBox = $('#opt-inspection');
-inspectionBox.checked = !!options.inspection;
-inspectionBox.addEventListener('change', () => {
-  options.inspection = inspectionBox.checked;
-  save(OPT_KEY, options);
-  inspectionBox.blur();
-});
-
-const timer = new SpeedTimer({
-  area: $('#timer-area'),
-  display: $('#timer-display'),
-  getInspection: () => options.inspection,
-  onStateChange: (s) => {
-    document.body.classList.toggle('solving', ['running', 'inspecting', 'ready', 'holding'].includes(s) &&
-      !(s === 'holding' && timer.afterHold === 'idle'));
-  },
-  onFinish: (time, penalty) => {
-    solves.push({ time, penalty, scramble, date: Date.now() });
-    save(STORE_KEY, solves);
-    renderSolves();
-    nextScramble();
-  },
-});
-
-function isTyping(e) {
-  const t = e.target;
-  return t instanceof HTMLElement && (t.matches('input[type="text"], textarea') || t.isContentEditable);
-}
-
-document.addEventListener('keydown', (e) => {
-  if (activeTab !== 'timer' || isTyping(e)) return;
-  if (timer.state === 'running') {
-    e.preventDefault();
-    timer.press();
-    return;
-  }
-  if (e.code === 'Space') {
-    e.preventDefault();
-    if (!e.repeat) timer.press();
-  }
-});
-document.addEventListener('keyup', (e) => {
-  if (activeTab !== 'timer' || isTyping(e)) return;
-  if (e.code === 'Space' || timer.state === 'stopped') {
-    e.preventDefault();
-    timer.release();
-  }
-});
-
-const timerArea = $('#timer-area');
-timerArea.addEventListener('pointerdown', (e) => {
-  if (e.target.closest('button, label, input')) return;
-  if (e.pointerType === 'mouse' && e.button !== 0) return;
-  e.preventDefault();
-  timer.press();
-});
-window.addEventListener('pointerup', () => {
-  if (activeTab === 'timer') timer.release();
-});
-timerArea.addEventListener('contextmenu', (e) => e.preventDefault());
-
-function renderSolves() {
-  const list = $('#solve-list');
-  list.innerHTML = '';
-  $('#empty-history').hidden = solves.length > 0;
-  solves.forEach((s, i) => {
-    const li = document.createElement('li');
-    li.className = 'solve-item';
-    li.innerHTML = `
-      <span class="solve-no">${i + 1}.</span>
-      <span class="solve-time"></span>
-      <span class="solve-scramble"></span>
-      <span class="solve-actions">
-        <button class="btn small${s.penalty === '+2' ? ' active' : ''}" data-act="+2">+2</button>
-        <button class="btn small${s.penalty === 'DNF' ? ' active' : ''}" data-act="DNF">DNF</button>
-        <button class="btn small ghost danger" data-act="del" aria-label="削除">✕</button>
-      </span>`;
-    li.querySelector('.solve-time').textContent = formatSolve(s);
-    const sc = li.querySelector('.solve-scramble');
-    sc.textContent = s.scramble;
-    sc.title = `${new Date(s.date).toLocaleString()}\n${s.scramble}`;
-    li.querySelector('.solve-actions').addEventListener('click', (e) => {
-      const act = e.target.closest('button')?.dataset.act;
-      if (!act) return;
-      if (act === 'del') {
-        if (!confirm(`記録 ${i + 1}（${formatSolve(s)}）を削除しますか？`)) return;
-        solves.splice(i, 1);
-      } else {
-        s.penalty = s.penalty === act ? null : act;
-      }
-      save(STORE_KEY, solves);
-      renderSolves();
-    });
-    list.prepend(li);
-  });
-
-  const fmt = (v) => (v === null ? '-' : formatTime(v));
-  $('#stat-best').textContent = fmt(best(solves));
-  $('#stat-ao5').textContent = fmt(averageOf(solves, 5));
-  $('#stat-ao12').textContent = fmt(averageOf(solves, 12));
-  $('#stat-bao5').textContent = fmt(bestAverageOf(solves, 5));
-  $('#stat-mean').textContent = fmt(mean(solves));
-  $('#stat-count').textContent = String(solves.length);
-}
-
-$('#btn-clear').addEventListener('click', () => {
-  if (!solves.length || !confirm('すべての記録を削除しますか？この操作は取り消せません。')) return;
-  solves = [];
-  save(STORE_KEY, solves);
-  renderSolves();
-});
-
-// ---------- 3D キューブ ----------
+// ---------- キューブ ----------
 const model = new CubeState();
 let cube3d = null;
 let cubeLoading = null;
 let history = [];
+let pendingSetup = [];
 let movesSinceScramble = 0;
 let scrambled = false;
+let solveStart = null;
 
 function ensureCube3D() {
   if (!cubeLoading) {
     cubeLoading = import('./cube3d.js')
       .then(({ Cube3D }) => {
         // 読み込み前に論理モデルへ適用済みの手順を、3D側にだけ反映する
-        cube3d = new Cube3D($('#cube-canvas'));
-        cube3d.setSpeed(Number($('#speed').value));
+        cube3d = new Cube3D($('#cube-canvas'), { onSwipe: (mv) => doMoves([mv]) });
+        cube3d.setSpeed(options.speed);
         if (pendingSetup.length) cube3d.enqueue(pendingSetup, { instant: true });
         pendingSetup = [];
         cube3d.onMove = afterMove;
@@ -208,13 +63,11 @@ function ensureCube3D() {
       .catch((err) => {
         console.error(err);
         $('#cube-canvas').innerHTML =
-          '<p class="fallback">3D表示を読み込めませんでした（ネットワーク接続を確認してください）。展開図で操作できます。</p>';
+          '<p class="fallback">3D表示を読み込めませんでした（ネットワーク接続を確認してください）。ボタンと展開図で操作できます。</p>';
       });
   }
   return cubeLoading;
 }
-
-let pendingSetup = [];
 
 function afterMove(mv) {
   model.applyMove(mv);
@@ -226,6 +79,7 @@ function doMoves(moves, { instant = false, record = true } = {}) {
   if (record) {
     history.push(...moves);
     movesSinceScramble += moves.length;
+    if (scrambled && solveStart === null) solveStart = performance.now();
   }
   if (cube3d) {
     cube3d.enqueue(moves, { instant });
@@ -243,24 +97,34 @@ function resetCube() {
   pendingSetup = [];
   movesSinceScramble = 0;
   scrambled = false;
+  solveStart = null;
   cube3d?.reset();
   updateCubeStatus();
 }
 
-function markScrambled() {
+// 崩した状態からの練習を開始
+function startPractice(setupMoves) {
+  resetCube();
+  doMoves(setupMoves, { instant: true, record: false });
   scrambled = true;
-  movesSinceScramble = 0;
-  history = [];
+  updateCubeStatus();
 }
 
 function updateCubeStatus() {
   const el = $('#cube-status');
   const solved = model.isSolved();
-  el.classList.toggle('solved', solved);
-  if (solved) {
-    el.textContent = scrambled && movesSinceScramble > 0 ? `完成！ 🎉 ${movesSinceScramble}手` : '揃っています';
+  el.classList.toggle('solved', solved && scrambled && movesSinceScramble > 0);
+  if (solved && scrambled && movesSinceScramble > 0) {
+    // 1回だけ所要時間を確定
+    if (solveStart !== null && !el.dataset.done) {
+      el.dataset.time = ((performance.now() - solveStart) / 1000).toFixed(1);
+      el.dataset.done = '1';
+    }
+    el.textContent = `完成！ 🎉 ${movesSinceScramble}手 / ${el.dataset.time ?? '-'}秒`;
   } else {
-    el.textContent = scrambled ? `${movesSinceScramble}手目` : '未完成';
+    delete el.dataset.done;
+    if (solved) el.textContent = '揃っています';
+    else el.textContent = scrambled ? `${movesSinceScramble}手目` : '未完成';
   }
   renderNet($('#cube-net'), model);
 }
@@ -282,21 +146,22 @@ for (const row of MOVE_ROWS) {
     const face = m[0];
     if (COLORS[face]) b.style.setProperty('--face-color', COLORS[face]);
     else b.classList.add('no-dot');
-    b.addEventListener('click', () => {
-      ensureCube3D();
-      doMoves(parseAlg(m));
-    });
+    b.addEventListener('click', () => doMoves(parseAlg(m)));
     moveGrid.appendChild(b);
   }
 }
 
+// キーボード
+function isTyping(e) {
+  const t = e.target;
+  return t instanceof HTMLElement && (t.matches('input[type="text"], textarea, select') || t.isContentEditable);
+}
+
 document.addEventListener('keydown', (e) => {
   if (activeTab !== 'cube' || isTyping(e) || e.ctrlKey || e.metaKey || e.altKey) return;
-  if (e.target instanceof HTMLSelectElement) return;
   const mv = moveForKey(options.keymap, e);
   if (!mv) return;
   e.preventDefault();
-  ensureCube3D();
   doMoves(parseAlg(mv));
 });
 
@@ -306,11 +171,12 @@ keymapSelect.value = options.keymap;
 renderKeyboard($('#keyboard-map'), options.keymap);
 keymapSelect.addEventListener('change', () => {
   options.keymap = keymapSelect.value;
-  save(OPT_KEY, options);
+  saveOptions();
   renderKeyboard($('#keyboard-map'), options.keymap);
   keymapSelect.blur();
 });
 
+// 手順入力
 function readAlgInput() {
   const err = $('#alg-error');
   try {
@@ -330,15 +196,13 @@ $('#btn-play').addEventListener('click', () => {
 });
 $('#btn-setup').addEventListener('click', () => {
   const moves = readAlgInput();
-  if (!moves) return;
-  resetCube();
-  doMoves(invertMoves(moves), { instant: true, record: false });
-  markScrambled();
-  updateCubeStatus();
+  if (moves) startPractice(invertMoves(moves));
 });
 $('#alg-input').addEventListener('keydown', (e) => {
   if (e.key === 'Enter') $('#btn-play').click();
 });
+
+// 操作ボタン
 $('#btn-undo').addEventListener('click', () => {
   const last = history.pop();
   if (!last) return;
@@ -347,15 +211,18 @@ $('#btn-undo').addEventListener('click', () => {
 });
 $('#btn-random').addEventListener('click', () => {
   const s = generateScramble();
-  resetCube();
-  doMoves(parseAlg(s), { instant: true, record: false });
-  markScrambled();
-  updateCubeStatus();
+  startPractice(parseAlg(s));
   $('#alg-input').value = s;
 });
 $('#btn-reset').addEventListener('click', resetCube);
 $('#btn-view').addEventListener('click', () => cube3d?.resetView());
-$('#speed').addEventListener('input', (e) => cube3d?.setSpeed(Number(e.target.value)));
+const speed = $('#speed');
+speed.value = options.speed;
+speed.addEventListener('input', () => {
+  options.speed = Number(speed.value);
+  saveOptions();
+  cube3d?.setSpeed(options.speed);
+});
 
 // ---------- ガイド ----------
 function renderGuide() {
@@ -380,7 +247,7 @@ function renderGuide() {
       const btn = document.createElement('button');
       btn.className = 'btn primary small';
       btn.textContent = '3Dで練習';
-      btn.addEventListener('click', () => practice(a));
+      btn.addEventListener('click', () => practiceAlg(a));
       row.appendChild(btn);
       card.appendChild(row);
     }
@@ -399,20 +266,15 @@ function renderGuide() {
   }
 }
 
-async function practice({ alg, setup }) {
+async function practiceAlg({ alg, setup }) {
   showTab('cube');
   await ensureCube3D();
-  resetCube();
   const moves = parseAlg(alg);
-  doMoves([...parseAlg(setup || ''), ...invertMoves(moves)], { instant: true, record: false });
-  markScrambled();
-  updateCubeStatus();
+  startPractice([...parseAlg(setup || ''), ...invertMoves(moves)]);
   $('#alg-input').value = algToString(moves);
 }
 
 // ---------- 起動 ----------
 renderGuide();
-renderSolves();
-setScramble(generateScramble());
 updateCubeStatus();
-$('#timer-area').focus({ preventScroll: true });
+ensureCube3D();

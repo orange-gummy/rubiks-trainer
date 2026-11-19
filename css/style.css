@@ -56,7 +56,8 @@ body {
   -webkit-tap-highlight-color: transparent;
 }
 
-button, input { font: inherit; color: inherit; }
+button, input, select { font: inherit; color: inherit; }
+button { touch-action: manipulation; }
 
 /* ヘッダー */
 .app-header {
@@ -113,17 +114,10 @@ main { max-width: 1100px; margin: 0 auto; padding: 16px; }
 .muted { color: var(--muted); font-size: .88rem; }
 .error { color: var(--danger); font-size: .85rem; margin: 4px 0 0; }
 
-/* スクランブル */
-.scramble-box, .history, .stat, .control-block, .step-card, .guide-intro {
+.control-block, .step-card, .guide-intro {
   background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow);
 }
 
-.scramble-box { padding: 12px 16px; display: grid; grid-template-columns: 1fr auto; gap: 4px 16px; align-items: center; }
-.scramble-head { grid-column: 1 / -1; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; }
-.scramble-text {
-  margin: 0; font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
-  font-size: clamp(1rem, 2.6vw, 1.35rem); font-weight: 600; word-spacing: .2em;
-}
 
 /* 展開図 */
 .net {
@@ -132,50 +126,6 @@ main { max-width: 1100px; margin: 0 auto; padding: 16px; }
 }
 .net-face { display: grid; grid-template-columns: repeat(3, var(--cell, 16px)); gap: 1px; }
 .net-cell { width: var(--cell, 16px); height: var(--cell, 16px); border-radius: 2px; outline: 1px solid rgba(0, 0, 0, .35); outline-offset: -1px; }
-.small-net { --cell: 9px; }
-
-/* タイマー */
-.timer-area {
-  margin: 16px 0; padding: 32px 16px; text-align: center; border-radius: var(--radius);
-  user-select: none; -webkit-user-select: none; touch-action: manipulation; outline: none; cursor: pointer;
-}
-.timer-display {
-  font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
-  font-size: clamp(4rem, 17vw, 9rem); font-weight: 700; line-height: 1.1; font-variant-numeric: tabular-nums;
-  transition: color .1s;
-}
-.timer-area.holding .timer-display { color: var(--hold); }
-.timer-area.ready .timer-display { color: var(--ready); }
-.timer-area.inspecting .timer-display { color: var(--accent); }
-.timer-hint { margin: 8px 0; color: var(--muted); font-size: .9rem; }
-.toggle { display: inline-flex; align-items: center; gap: 6px; font-size: .9rem; color: var(--muted); cursor: pointer; }
-
-body.solving .app-header,
-body.solving .scramble-box,
-body.solving .stats-grid,
-body.solving .history,
-body.solving .timer-hint,
-body.solving .toggle { visibility: hidden; }
-body.solving .timer-area { margin-top: 18vh; }
-
-.stats-grid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 10px; }
-.stat { padding: 10px 12px; display: flex; flex-direction: column; }
-.stat-label { font-size: .75rem; color: var(--muted); font-weight: 700; }
-.stat-value { font-size: 1.25rem; font-weight: 700; font-variant-numeric: tabular-nums; }
-
-.history { margin-top: 16px; padding: 12px 16px; }
-.history-head { display: flex; justify-content: space-between; align-items: center; }
-.history-head h2 { font-size: 1rem; margin: 0; }
-.solve-list { list-style: none; margin: 8px 0 0; padding: 0; max-height: 360px; overflow-y: auto; }
-.solve-item {
-  display: grid; grid-template-columns: 3em 6.5em 1fr auto; align-items: center; gap: 8px;
-  padding: 6px 0; border-top: 1px solid var(--border);
-}
-.solve-no { color: var(--muted); font-size: .85rem; }
-.solve-time { font-weight: 700; font-variant-numeric: tabular-nums; }
-.solve-scramble { font-family: ui-monospace, Menlo, Consolas, monospace; font-size: .75rem; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.solve-actions { display: flex; gap: 4px; }
-.solve-actions .btn.active { background: var(--accent); color: var(--accent-text); border-color: var(--accent); }
 
 /* 3D キューブ */
 .cube-layout { display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr); gap: 16px; align-items: start; }
@@ -238,16 +188,11 @@ input[type="range"] { width: 100%; accent-color: var(--accent); }
 @media (max-width: 820px) {
   .cube-layout { grid-template-columns: 1fr; }
   .cube-stage { position: relative; top: 0; }
-  .stats-grid { grid-template-columns: repeat(3, 1fr); }
-  .scramble-box { grid-template-columns: 1fr; }
 }
 
 @media (max-width: 480px) {
   .app-header { padding: 8px 16px; }
   .tab { padding: 6px 10px; font-size: .85rem; }
-  .solve-item { grid-template-columns: 2.4em 5.5em 1fr auto; }
-  .solve-scramble { display: none; }
-  .solve-item { grid-template-columns: 2.4em 1fr auto; }
   .alg-name { min-width: 0; width: 100%; }
 }
 
@@ -273,3 +218,18 @@ input[type="range"] { width: 100%; accent-color: var(--accent); }
 .kb-key[data-face="F"] { --face: #009b48; }
 .kb-key[data-face="B"] { --face: #0046ad; }
 .kb-note { margin: 0; font-size: .8rem; }
+
+/* 練習画面 */
+.quick-actions { display: grid; grid-template-columns: 1.4fr 1fr 1fr; gap: 8px; margin-top: 10px; }
+.quick-actions .btn { padding: 10px 8px; }
+
+/* タッチ端末：キーボード表は不要、キューブを大きく */
+@media (hover: none) and (pointer: coarse) {
+  .keyboard-block { display: none; }
+}
+
+@media (max-width: 820px) {
+  main { padding: 12px 16px; }
+  .cube-canvas { max-height: 62vh; }
+  .move-btn { padding: 11px 0; }
+}
