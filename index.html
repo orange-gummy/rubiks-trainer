@@ -1,0 +1,132 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Rubik's Trainer</title>
+  <meta name="description" content="3x3 ルービックキューブの練習アプリ：スクランブル、タイマー、3Dキューブ、初心者向け解法ガイド">
+  <link rel="stylesheet" href="css/style.css">
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+      "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+    }
+  }
+  </script>
+</head>
+<body>
+  <header class="app-header">
+    <h1 class="logo"><span class="logo-mark" aria-hidden="true"></span>Rubik's Trainer</h1>
+    <nav class="tabs" role="tablist">
+      <button class="tab" role="tab" data-tab="timer" aria-selected="true">タイマー</button>
+      <button class="tab" role="tab" data-tab="cube" aria-selected="false">3Dキューブ</button>
+      <button class="tab" role="tab" data-tab="guide" aria-selected="false">解法ガイド</button>
+    </nav>
+  </header>
+
+  <main>
+    <!-- タイマー -->
+    <section id="panel-timer" class="panel" role="tabpanel">
+      <div class="scramble-box">
+        <div class="scramble-head">
+          <span class="label">スクランブル</span>
+          <div class="btn-row">
+            <button id="btn-prev-scramble" class="btn ghost small" title="前のスクランブル">◀</button>
+            <button id="btn-new-scramble" class="btn ghost small">新しく生成</button>
+            <button id="btn-scramble-3d" class="btn ghost small">3Dで見る</button>
+          </div>
+        </div>
+        <p id="scramble-text" class="scramble-text"></p>
+        <div id="scramble-net" class="net small-net" aria-label="スクランブル後の展開図"></div>
+      </div>
+
+      <div id="timer-area" class="timer-area" tabindex="0">
+        <div id="timer-display" class="timer-display">0.00</div>
+        <p id="timer-hint" class="timer-hint">スペースキー（スマホは画面をタップ）を長押し → 緑になったら離してスタート</p>
+        <label class="toggle"><input type="checkbox" id="opt-inspection"> 15秒インスペクション</label>
+      </div>
+
+      <div class="stats-grid">
+        <div class="stat"><span class="stat-label">ベスト</span><span id="stat-best" class="stat-value">-</span></div>
+        <div class="stat"><span class="stat-label">ao5</span><span id="stat-ao5" class="stat-value">-</span></div>
+        <div class="stat"><span class="stat-label">ao12</span><span id="stat-ao12" class="stat-value">-</span></div>
+        <div class="stat"><span class="stat-label">ベストao5</span><span id="stat-bao5" class="stat-value">-</span></div>
+        <div class="stat"><span class="stat-label">平均</span><span id="stat-mean" class="stat-value">-</span></div>
+        <div class="stat"><span class="stat-label">回数</span><span id="stat-count" class="stat-value">0</span></div>
+      </div>
+
+      <div class="history">
+        <div class="history-head">
+          <h2>記録</h2>
+          <button id="btn-clear" class="btn ghost small danger">すべて削除</button>
+        </div>
+        <ol id="solve-list" class="solve-list"></ol>
+        <p id="empty-history" class="muted">まだ記録がありません。最初のソルブを計測しましょう！</p>
+      </div>
+    </section>
+
+    <!-- 3D キューブ -->
+    <section id="panel-cube" class="panel" role="tabpanel" hidden>
+      <div class="cube-layout">
+        <div class="cube-stage">
+          <div id="cube-canvas" class="cube-canvas"></div>
+          <div id="cube-status" class="cube-status">揃っています</div>
+          <p class="muted cube-tip">ドラッグで視点を回転。キーボード：U D R L F B M E S x y z（Shiftで逆回転）</p>
+        </div>
+
+        <div class="cube-controls">
+          <div class="move-grid" id="move-grid"></div>
+
+          <div class="control-block">
+            <label for="alg-input" class="label">手順を入力</label>
+            <input id="alg-input" class="alg-input" type="text" placeholder="例: R U R' U'" autocomplete="off" spellcheck="false">
+            <p id="alg-error" class="error" hidden></p>
+            <div class="btn-row">
+              <button id="btn-play" class="btn primary">▶ 再生</button>
+              <button id="btn-setup" class="btn" title="この手順で揃う状態を作る">逆手順をセット</button>
+            </div>
+          </div>
+
+          <div class="control-block btn-row">
+            <button id="btn-undo" class="btn">↶ 1手戻す</button>
+            <button id="btn-random" class="btn">ランダムに崩す</button>
+            <button id="btn-reset" class="btn">リセット</button>
+            <button id="btn-view" class="btn ghost">視点を戻す</button>
+          </div>
+
+          <div class="control-block">
+            <label for="speed" class="label">回転スピード</label>
+            <input id="speed" type="range" min="60" max="600" step="20" value="220">
+          </div>
+
+          <div class="control-block">
+            <span class="label">展開図</span>
+            <div id="cube-net" class="net"></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ガイド -->
+    <section id="panel-guide" class="panel" role="tabpanel" hidden>
+      <div class="guide-intro">
+        <h2>初心者向け：LBL法で6面を揃えよう</h2>
+        <p>1段ずつ揃えていく、いちばん基本的な解き方です。各手順の「3Dで練習」を押すと、その手順で揃う状態が3Dキューブにセットされます。</p>
+        <details class="notation">
+          <summary>回転記号の読み方</summary>
+          <ul>
+            <li><b>R / L / U / D / F / B</b>：右・左・上・下・前・後ろの面を、その面を正面から見て時計回りに90°回す</li>
+            <li><b>'（ダッシュ）</b>：反時計回り（例：R' ）</li>
+            <li><b>2</b>：180°回す（例：U2）</li>
+            <li><b>x / y / z</b>：キューブ全体の持ち替え（それぞれ R / U / F と同じ方向）</li>
+          </ul>
+        </details>
+      </div>
+      <div id="guide-steps" class="guide-steps"></div>
+    </section>
+  </main>
+
+  <script type="module" src="js/main.js"></script>
+</body>
+</html>

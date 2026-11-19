@@ -1,0 +1,11 @@
+{
+  "name": "rubiks-trainer",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "3x3 Rubik's cube practice web app",
+  "scripts": {
+    "test": "node --test test/*.test.js",
+    "start": "npx --yes serve ."
+  }
+}
