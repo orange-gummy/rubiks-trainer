@@ -56,6 +56,13 @@ export class Cube3D {
     this.controls.enableDamping = true;
     this.controls.minDistance = 6;
     this.controls.maxDistance = 20;
+    // 左ドラッグ: キューブ上なら列を回す / 外側なら視点回転
+    // 右ドラッグ: どこでも視点回転、ホイール・中ボタン: ズーム
+    this.controls.mouseButtons = {
+      LEFT: THREE.MOUSE.ROTATE,
+      MIDDLE: THREE.MOUSE.DOLLY,
+      RIGHT: THREE.MOUSE.ROTATE,
+    };
 
     this.scene.add(new THREE.AmbientLight(0xffffff, 1.4));
     const key = new THREE.DirectionalLight(0xffffff, 1.8);
